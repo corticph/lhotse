@@ -6,12 +6,23 @@ from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from typing import Callable, Optional
 
-from lhotse.utils import NonPositiveEnergyError, Seconds, fastcopy, suppress_and_warn
+from lhotse.utils import (
+    Decibels,
+    NonPositiveEnergyError,
+    Seconds,
+    fastcopy,
+    suppress_and_warn,
+)
 
 _DEFAULT_LHOTSE_AUDIO_DURATION_MISMATCH_TOLERANCE: Seconds = 0.5
 _LHOTSE_AUDIO_DURATION_MISMATCH_TOLERANCE: Seconds = (
     _DEFAULT_LHOTSE_AUDIO_DURATION_MISMATCH_TOLERANCE
 )
+
+_DEFAULT_LHOTSE_AUDIO_MIX_MAX_GAIN_DB: Optional[Decibels] = None
+_LHOTSE_AUDIO_MIX_MAX_GAIN_DB: Optional[
+    Decibels
+] = _DEFAULT_LHOTSE_AUDIO_MIX_MAX_GAIN_DB
 
 
 @dataclass
@@ -104,6 +115,42 @@ def set_audio_duration_mismatch_tolerance(delta: Seconds) -> None:
             f"We don't recommend this as it might break some data augmentation transforms."
         )
     _LHOTSE_AUDIO_DURATION_MISMATCH_TOLERANCE = delta
+
+
+def get_audio_mix_max_gain_db() -> Optional[Decibels]:
+    """Retrieve the current maximum gain (in dB) for audio mixing.
+
+    When set, this caps the amplitude gain applied to a noise/added signal
+    in :class:`~lhotse.audio.mixer.AudioMixer` to prevent astronomical
+    amplification of near-silent sources.  For example, 40.0 means the
+    added signal can be amplified by at most 40 dB (linear amplitude
+    factor of 100).
+
+    Returns ``None`` when no cap is configured (the default).
+    """
+    if _LHOTSE_AUDIO_MIX_MAX_GAIN_DB != _DEFAULT_LHOTSE_AUDIO_MIX_MAX_GAIN_DB:
+        return _LHOTSE_AUDIO_MIX_MAX_GAIN_DB
+
+    if "LHOTSE_AUDIO_MIX_MAX_GAIN_DB" in os.environ:
+        return float(os.environ["LHOTSE_AUDIO_MIX_MAX_GAIN_DB"])
+
+    return _LHOTSE_AUDIO_MIX_MAX_GAIN_DB
+
+
+def set_audio_mix_max_gain_db(max_gain_db: Optional[Decibels]) -> None:
+    """Set a global maximum gain (in dB) for :class:`~lhotse.audio.mixer.AudioMixer`.
+
+    This prevents near-silent noise clips from being amplified by orders
+    of magnitude during SNR-based mixing.  A recommended value is 40.0
+    (linear amplitude factor of 100).  Set to ``None`` to disable the cap.
+    """
+    global _LHOTSE_AUDIO_MIX_MAX_GAIN_DB
+    logging.info(
+        f"Audio mix max gain changed. "
+        f"Old: {_LHOTSE_AUDIO_MIX_MAX_GAIN_DB} dB. "
+        f"New: {max_gain_db} dB."
+    )
+    _LHOTSE_AUDIO_MIX_MAX_GAIN_DB = max_gain_db
 
 
 class VideoLoadingError(Exception):

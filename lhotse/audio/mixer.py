@@ -4,6 +4,7 @@ from typing import List, Optional
 import numpy as np
 import torch
 
+from lhotse.audio.utils import get_audio_mix_max_gain_db
 from lhotse.utils import Decibels, Seconds, compute_num_samples
 
 
@@ -19,6 +20,10 @@ class AudioMixer:
     The time offset is relative to the start of the reference signal
     (only positive values are supported).
     The SNR is relative to the energy of the signal used to initialize the ``AudioMixer``.
+
+    The maximum gain applied to added signals can be controlled globally via
+    :func:`~lhotse.audio.utils.set_audio_mix_max_gain_db` or the
+    ``LHOTSE_AUDIO_MIX_MAX_GAIN_DB`` environment variable.
 
     .. note:: Both single-channel and multi-channel signals are supported as reference
         and added signals. The only requirement is that the when mixing 2 multi-channel
@@ -53,6 +58,12 @@ class AudioMixer:
         self.sampling_rate = sampling_rate
         self.num_channels = base_audio.shape[0]
         self.dtype = self.tracks[0].dtype
+
+        # Resolve max gain cap from global setting (dB -> linear amplitude factor).
+        max_gain_db = get_audio_mix_max_gain_db()
+        self.max_gain = (
+            10.0 ** (max_gain_db / 20.0) if max_gain_db is not None else None
+        )
 
         # Keep a pre-computed energy value of the audio that we initialize the Mixer with;
         # it is required to compute gain ratios that satisfy SNR during the mix.
@@ -158,6 +169,8 @@ class AudioMixer:
                 # whereas the energy ratio applies to power quantities. To compute the gain correctly,
                 # we need to take a square root of the energy ratio.
                 gain = sqrt(target_energy / added_audio_energy)
+                if self.max_gain is not None:
+                    gain = min(gain, self.max_gain)
         self.tracks.append(gain * audio)
         self.offsets.append(num_samples_offset)
         # We cannot mix 2 multi-channel audios with different number of channels.

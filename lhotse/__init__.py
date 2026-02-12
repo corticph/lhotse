@@ -5,10 +5,12 @@ from .audio import (
     audio_backend,
     available_audio_backends,
     get_audio_duration_mismatch_tolerance,
+    get_audio_mix_max_gain_db,
     get_current_audio_backend,
     get_default_audio_backend,
     get_ffmpeg_torchaudio_info_enabled,
     set_audio_duration_mismatch_tolerance,
+    set_audio_mix_max_gain_db,
     set_current_audio_backend,
     set_ffmpeg_torchaudio_info_enabled,
 )
