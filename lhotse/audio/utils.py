@@ -24,6 +24,9 @@ _LHOTSE_AUDIO_MIX_MAX_GAIN_DB: Optional[
     Decibels
 ] = _DEFAULT_LHOTSE_AUDIO_MIX_MAX_GAIN_DB
 
+_DEFAULT_LHOTSE_AUDIO_MIX_NORMALIZE: bool = False
+_LHOTSE_AUDIO_MIX_NORMALIZE: bool = _DEFAULT_LHOTSE_AUDIO_MIX_NORMALIZE
+
 
 @dataclass
 class VideoInfo:
@@ -151,6 +154,40 @@ def set_audio_mix_max_gain_db(max_gain_db: Optional[Decibels]) -> None:
         f"New: {max_gain_db} dB."
     )
     _LHOTSE_AUDIO_MIX_MAX_GAIN_DB = max_gain_db
+
+
+def get_audio_mix_normalize() -> bool:
+    """Return whether mixed audio is peak-normalized after summing tracks.
+
+    When enabled, :class:`~lhotse.audio.mixer.AudioMixer` will rescale the
+    final mix so that the peak amplitude is at most 1.0.  This prevents
+    clipping caused by additive noise mixing at low SNR values.
+
+    Defaults to ``False``.  Can also be set via the environment variable
+    ``LHOTSE_AUDIO_MIX_NORMALIZE=1``.
+    """
+    if _LHOTSE_AUDIO_MIX_NORMALIZE != _DEFAULT_LHOTSE_AUDIO_MIX_NORMALIZE:
+        return _LHOTSE_AUDIO_MIX_NORMALIZE
+
+    if "LHOTSE_AUDIO_MIX_NORMALIZE" in os.environ:
+        return os.environ["LHOTSE_AUDIO_MIX_NORMALIZE"] in ("1", "true", "True")
+
+    return _LHOTSE_AUDIO_MIX_NORMALIZE
+
+
+def set_audio_mix_normalize(normalize: bool) -> None:
+    """Enable or disable peak-normalization of mixed audio.
+
+    When ``True``, :class:`~lhotse.audio.mixer.AudioMixer` rescales the mix
+    so that ``max(abs(signal)) <= 1.0`` whenever the peak exceeds 1.0.
+    """
+    global _LHOTSE_AUDIO_MIX_NORMALIZE
+    logging.info(
+        f"Audio mix normalize changed. "
+        f"Old: {_LHOTSE_AUDIO_MIX_NORMALIZE}. "
+        f"New: {normalize}."
+    )
+    _LHOTSE_AUDIO_MIX_NORMALIZE = normalize
 
 
 class VideoLoadingError(Exception):

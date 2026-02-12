@@ -4,7 +4,7 @@ from typing import List, Optional
 import numpy as np
 import torch
 
-from lhotse.audio.utils import get_audio_mix_max_gain_db
+from lhotse.audio.utils import get_audio_mix_max_gain_db, get_audio_mix_normalize
 from lhotse.utils import Decibels, Seconds, compute_num_samples
 
 
@@ -65,6 +65,9 @@ class AudioMixer:
             10.0 ** (max_gain_db / 20.0) if max_gain_db is not None else None
         )
 
+        # Store the base audio peak for level-preserving normalization.
+        self.base_peak = float(np.max(np.abs(base_audio)))
+
         # Keep a pre-computed energy value of the audio that we initialize the Mixer with;
         # it is required to compute gain ratios that satisfy SNR during the mix.
         if reference_energy is None:
@@ -120,6 +123,10 @@ class AudioMixer:
             if track.shape[0] == 1 and self.num_channels > 1:
                 track = np.tile(track, (self.num_channels, 1))
             mixed[:, offset : offset + track.shape[1]] += track
+        if get_audio_mix_normalize() and self.base_peak > 0:
+            mixed_peak = np.max(np.abs(mixed))
+            if mixed_peak > self.base_peak:
+                mixed = mixed * (self.base_peak / mixed_peak)
         return mixed
 
     @property

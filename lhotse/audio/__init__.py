@@ -19,9 +19,11 @@ from .utils import (
     VideoInfo,
     get_audio_duration_mismatch_tolerance,
     get_audio_mix_max_gain_db,
+    get_audio_mix_normalize,
     null_result_on_audio_loading_error,
     set_audio_duration_mismatch_tolerance,
     set_audio_mix_max_gain_db,
+    set_audio_mix_normalize,
     suppress_audio_loading_errors,
 )
 
@@ -38,6 +40,7 @@ __all__ = [
     "get_default_audio_backend",
     "get_audio_duration_mismatch_tolerance",
     "get_audio_mix_max_gain_db",
+    "get_audio_mix_normalize",
     "get_ffmpeg_torchaudio_info_enabled",
     "info",
     "read_audio",
@@ -45,6 +48,7 @@ __all__ = [
     "set_current_audio_backend",
     "set_audio_duration_mismatch_tolerance",
     "set_audio_mix_max_gain_db",
+    "set_audio_mix_normalize",
     "set_ffmpeg_torchaudio_info_enabled",
     "null_result_on_audio_loading_error",
     "suppress_audio_loading_errors",
