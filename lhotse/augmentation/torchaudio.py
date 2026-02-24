@@ -392,6 +392,56 @@ class Narrowband(AudioTransform):
 
 
 @dataclass
+class SpeechLevelAugment(AudioTransform):
+    """
+    Speech level augmentation that scales audio to a target RMS level (dBFS).
+
+    The target level is pre-determined at transform creation time (e.g. sampled from a
+    uniform distribution by the caller).  When the transform is applied during audio
+    loading it:
+
+    1. Measures the current RMS of the waveform in dBFS.
+    2. Computes the gain needed to reach ``target_dbfs``.
+    3. Caps the gain so that the signal peak never exceeds ``peak_ceiling_db`` dBFS,
+       preventing clipping.
+    4. Returns the scaled waveform with the same dtype as the input.
+
+    Near-silent segments (RMS below 1e-9) are returned unchanged to avoid
+    astronomically large gains on silence.
+    """
+
+    target_dbfs: float
+    peak_ceiling_db: float = -1.0
+
+    def __call__(self, samples: np.ndarray, sampling_rate: int) -> np.ndarray:
+        if samples.size == 0:
+            return samples
+
+        rms = float(np.sqrt(np.mean(samples**2)))
+        if rms < 1e-9:
+            return samples  # near-silent — do not touch
+
+        current_dbfs = 20.0 * np.log10(rms)
+        gain = 10.0 ** ((self.target_dbfs - current_dbfs) / 20.0)
+
+        # Peak protection: never let any sample exceed peak_ceiling_db.
+        peak = float(np.max(np.abs(samples)))
+        if peak > 0.0:
+            peak_ceiling_linear = 10.0 ** (self.peak_ceiling_db / 20.0)
+            gain = min(gain, peak_ceiling_linear / peak)
+
+        return (samples * gain).astype(samples.dtype)
+
+    def reverse_timestamps(
+        self,
+        offset: Seconds,
+        duration: Optional[Seconds],
+        sampling_rate: Optional[int],
+    ) -> Tuple[Seconds, Optional[Seconds]]:
+        return offset, duration
+
+
+@dataclass
 class Volume(AudioTransform):
     """
     Volume perturbation effect, the same one as invoked with `sox vol` in the command line.

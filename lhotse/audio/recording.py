@@ -26,6 +26,7 @@ from lhotse.augmentation import (
     Resample,
     ReverbWithImpulseResponse,
     Speed,
+    SpeechLevelAugment,
     Tempo,
     Volume,
 )
@@ -750,6 +751,34 @@ class Recording:
         return fastcopy(
             self,
             id=f"{self.id}_vp{factor}" if affix_id else self.id,
+            transforms=transforms,
+        )
+
+    def with_speech_level_aug(
+        self,
+        target_dbfs: float,
+        peak_ceiling_db: float = -1.0,
+        affix_id: bool = False,
+    ) -> "Recording":
+        """
+        Return a new ``Recording`` that will lazily scale audio to a target RMS
+        level (dBFS) when loaded.
+
+        The gain is capped so the peak never exceeds ``peak_ceiling_db`` dBFS.
+        Near-silent segments are left unchanged.
+
+        :param target_dbfs: Target RMS level in dBFS (e.g. -25.0).
+        :param peak_ceiling_db: Maximum allowed peak in dBFS (default -1.0).
+        :param affix_id: When true, append ``_sla{target_dbfs}`` to the recording id.
+        :return: A modified copy of the current ``Recording``.
+        """
+        transforms = self.transforms.copy() if self.transforms is not None else []
+        transforms.append(
+            SpeechLevelAugment(target_dbfs=target_dbfs, peak_ceiling_db=peak_ceiling_db)
+        )
+        return fastcopy(
+            self,
+            id=f"{self.id}_sla{target_dbfs}" if affix_id else self.id,
             transforms=transforms,
         )
 
