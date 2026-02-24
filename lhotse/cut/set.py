@@ -3769,6 +3769,12 @@ class LazyCutMixer(Dillable):
                 self.duration if self.duration is not None else cut.duration - 0.05,
                 ndigits=8,
             )
+            # If the cut is shorter than the 50ms margin, target_mixed_duration would
+            # be negative or zero, which causes a negative duration error downstream.
+            # Skip noise mixing for such cuts — they're too short to add noise meaningfully.
+            if target_mixed_duration <= 0:
+                yield cut
+                continue
             # Actual mixing
             to_mix = next(mix_in_cuts)
             to_mix = self._maybe_truncate_cut(to_mix, target_mixed_duration, rng)
