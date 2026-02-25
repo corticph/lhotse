@@ -1015,6 +1015,44 @@ class DataCut(Cut, CustomFieldMixin, metaclass=ABCMeta):
             supervisions=supervisions_ln,
         )
 
+    def with_speech_level_aug(
+        self,
+        target_dbfs: float,
+        peak_ceiling_db: float = -1.0,
+        affix_id: bool = False,
+    ) -> "DataCut":
+        """
+        Return a new ``DataCut`` that will lazily scale audio to a target RMS
+        level (dBFS) when loaded.
+
+        The gain is capped so the peak never exceeds ``peak_ceiling_db`` dBFS.
+        Near-silent segments are left unchanged.  This is an inexpensive,
+        lazy operation — no audio is loaded until training time.
+
+        :param target_dbfs: Target RMS level in dBFS (e.g. -25.0).
+        :param peak_ceiling_db: Maximum allowed peak in dBFS (default -1.0).
+        :param affix_id: When true, append ``_sla{target_dbfs}`` to the cut id.
+        :return: A modified copy of the current ``DataCut``.
+        """
+        assert (
+            self.has_recording
+        ), "Cannot apply speech level augmentation on a DataCut without Recording."
+        if self.has_features:
+            logging.warning(
+                "Attempting to apply speech level augmentation on a DataCut that references "
+                "pre-computed features. The feature manifest will be detached."
+            )
+            self.features = None
+        return fastcopy(
+            self,
+            id=f"{self.id}_sla{target_dbfs}" if affix_id else self.id,
+            recording=self.recording.with_speech_level_aug(
+                target_dbfs=target_dbfs,
+                peak_ceiling_db=peak_ceiling_db,
+                affix_id=affix_id,
+            ),
+        )
+
     def dereverb_wpe(self, affix_id: bool = True) -> "DataCut":
         """
         Return a new ``DataCut`` that will lazily apply WPE dereverberation.

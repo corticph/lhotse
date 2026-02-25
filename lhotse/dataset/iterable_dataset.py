@@ -113,5 +113,12 @@ class IterableDatasetWrapper(torch.utils.data.IterableDataset):
             # samplers typically act as if rank=0 and world_size=1
             # and data de-duplication / per node+worker shuffling
             # happens elsewhere.
-            c.dataloading_info["rank"] = rank
-            c.dataloading_info["world_size"] = world_size
+            try:
+                c.dataloading_info["rank"] = rank
+                c.dataloading_info["world_size"] = world_size
+            except AttributeError:
+                # MixedCuts with multiple non-padding DataCuts (e.g. from
+                # speaker concatenation augmentation) cannot store per-cut
+                # custom attributes.  dataloading_info is diagnostic-only,
+                # so it is safe to skip.
+                pass
