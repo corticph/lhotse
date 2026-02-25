@@ -365,7 +365,14 @@ def attach_dataloading_info(cuts: CutSet, rank: int, world_size: int) -> None:
         worker_id = worker_info.id
     info = {"rank": rank, "world_size": world_size, "worker_id": worker_id}
     for cut in cuts:
-        cut.dataloading_info = info
+        try:
+            cut.dataloading_info = info
+        except AttributeError:
+            # MixedCuts with multiple non-padding DataCuts (e.g. from
+            # speaker concatenation augmentation) cannot store per-cut
+            # custom attributes via __setattr__.  dataloading_info is
+            # diagnostic-only, so it is safe to skip.
+            pass
 
 
 class SamplingConstraint(metaclass=ABCMeta):
